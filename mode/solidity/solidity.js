@@ -19,26 +19,30 @@
     var leftBracketSign = '(';
     var rightBracketSign = ')';
     var functionVariableName = 'variable';
+    var keyWordContract = 'contract';
 
 
     var keywords = {
-      "contract": true, "function": true, "public": true, "pragma": true, "solidity": true,
-      "struct": true, "mapping": true, 'modifier':true, "storage": true, "constructor": true,
-      "view": true, "returns": true,
-      "constant": true, 'library': true,
-      "using": true, "external": true, "internal":true, "event":true, //internal pure
-      "memory": true, "pure": true, "payable":true, //not sure
-      "emit":true,
-     
-      // "case": true, "chan": true, "const": true,
-      // "default": true, "defer": true,  "fallthrough": true,
-      // "func": true, "go": true, "goto": true,  "import": true,
-      // "interface": true, "package": true,
-      // "select": true, "struct": true, "switch": true, "type": true, "var": true,
-      // "complex64": true, "complex128": true,
-      // "float32": true, "float64": true, 
-      //    "uintptr": true, "error": true,
-      // "rune": true
+      'pragma': true, 'solidity': true, 'import': true, 'as': true, 'from': true,
+      'contract': true, 'constructor': true, 'is': true,
+      'function': true, 'modifier': true,
+      // modifiers
+      'pure': true, 'view': true, 'payable': true, 'constant': true, 'anonymous': true, 'indexed': true, 
+      'returns': true, 'return': true,
+      'event': true, 
+      'struct': true, 'mapping': true,
+      'interface': true,
+      'using': true, 'library': true,
+      'storage': true, 'memory': true, 'calldata': true,
+      'public': true, 'private': true, 'external': true, 'internal': true,
+      'emit': true,
+      'assembly': true,
+      'abstract': true, 'after': true, 'catch': true, 'final': true, 'in': true, 'inline': true, 'let': true, 'match': true, 'null': true, 'of': true, 'relocatable': true, 'static': true, 'try': true, 'typeof':true,
+      'var': true,
+    };
+
+    var keywordsSpecial = {
+      'pragma': true, 'returns': true ,'address':true,'contract': true,"function": true,'struct':true
     };
 
     var keywordsEtherUnit = { 'wei': true, 'szabo': true, 'finney': true, 'ether': true };
@@ -49,15 +53,16 @@
       ['tx']: ['gasprice', 'origin']
     };
     var keywordsMoreBlockAndTransactionProperties = { 'now': true, 'gasleft': true, 'blockhash': true }
-    var keywordsErrorHandling = { 'assert': true, 'require': true, 'revert': true };
+    var keywordsErrorHandling = { 'assert': true, 'require': true, 'revert': true,'throw':true };
     var keywordsMathematicalAndCryptographicFuctions = {
       'addmod': true, 'mulmod': true, 'keccak256': true, 'sha256': true, 'ripemd160': true, 'ecrecover':true
     }
-    var keywordsContractRelated = { 'this': true, 'selfdestruct': true };
+    var keywordsContractRelated = { 'this': true, 'selfdestruct': true, 'super':true };
     var keywordsTypeInformation = { 'type': true };
+    var keywordsContractList = {};
 
     var keywordsControlStructures = {
-      'if': true, 'else': true, 'while': true, 'do': true, 'for': true, 'break': true, 'continue': true, 'return': true
+      'if': true, 'else': true, 'while': true, 'do': true, 'for': true, 'break': true, 'continue': true, 'switch': true, "case": true, 'default': true,
     };
 
     var keywordsValueTypes = {//TO DO: correct version is from 8 to 256, need to auto generate it
@@ -66,10 +71,19 @@
       "address": true,
     };
 
+    var keywordsV0505NewReserve = {
+      'alias': true, 'apply': true, 'auto': true, 'copyof': true, 'define': true, 'immutable': true, 'implements': true, 'macro': true, 'mutable': true, 'override': true, 'partial': true, 'promise': true, 'reference': true, 'sealed': true, 'sizeof': true, 'supports': true, 'typedef': true , 'unchecked': true
+    }
+
+    var keywordsAbiEncodeDecodeFunctions = {
+      ['abi']: ['decode', 'encodePacked', 'encodeWithSelector', 'encodeWithSignature', 'encode']
+    };
     var keywordsMembersOfAddressType = {
-      ['address(this)']: ['balance', 'call', 'delegatecall', 'staticcall'],
+      ['address']: ['balance', 'call', 'delegatecall', 'staticcall'],
       ['address payable']: ['transfer', 'send'],
     };
+
+    var natSpecTags = ['title', 'author', 'notice', 'dev', 'param','return'];
 
     // var functionStructureStage = [{
     //   function: ['function', 'returns']
@@ -83,7 +97,6 @@
     var atoms = {
       'delete': true, 'new': true, 
       "true": true, "false": true,
-
       //  "iota": true, "nil": true, "append": true,
       // "cap": true, "close": true, "complex": true, "copy": true, "imag": true,
       // "make": true,  "panic": true, "print": true,
@@ -91,43 +104,58 @@
     };
 
     var isOperatorChar = /[+\-*&^%:=<>!|\/]/;
+    var isNegativeChar = /[-]/;
 
     var curPunc;
 
     function tokenBase(stream, state) {
       var ch = stream.next();
-      
+      if (state.para != null) {
+        state.para = state.para + ' ' + ch;
+      }
+    
       if (ch == '"' || ch == "'" || ch == "`") {
         state.tokenize = tokenString(ch);
         return state.tokenize(stream, state);
       }
 
       if (isVersion(stream, state)) return "version"
-      
-      if (/[\d\.]/.test(ch)) {
-        if (ch == ".") {
-          stream.match(/^[0-9]+([eE][\-+]?[0-9]+)?/);
-        } else if (ch == "0") {
-          stream.match(/^[xX][0-9a-fA-F]+/) || stream.match(/^0[0-7]+/);
-        } else {
-          stream.match(/^[0-9]*\.?[0-9]*([eE][\-+]?[0-9]+)?/);
-        }
-        return "number";
-      }
+      if (isNumber(ch, stream)) return 'number';
+
 
       if (/[\[\]{}\(\),;\:\.]/.test(ch)) {
         return updateGarmmer(ch, state)      
       }
+
       if (ch == "/") {
         if (stream.eat("*")) {
           state.tokenize = tokenComment;
           return tokenComment(stream, state);
         }
+        if (stream.match(/\/{2}/)) {
+          while (ch = stream.next()) {
+            if (ch == "@") {
+              stream.backUp(1);
+              state.grammar = 'doc'
+              break;
+            }
+          }
+          return "doc";
+        }
+
         if (stream.eat("/")) {
           stream.skipToEnd();
           return "comment";
         }
       }
+
+
+      if (isNegativeChar.test(ch)) {
+        console.log('nagtive=>', stream.current())
+        if(isNumber(stream.peek(), stream)) return 'number'
+        return "operator";
+      }
+
       if (isOperatorChar.test(ch)) {
         stream.eatWhile(isOperatorChar);
         return "operator";
@@ -135,38 +163,75 @@
       stream.eatWhile(/[\w\$_\xa1-\uffff]/);
       
       var cur = stream.current();
+      if (state.para != null) {
+        console.log('Before state.para=',state.para)
+        state.para = state.para.substr(0,state.para-1) + ' ' + cur;
+        console.log('After tate.para=', state.para)
+      }
+      console.log(`current token =  ${cur} last token = ${state.lastToken}`) 
+
+      if (state.grammar == 'doc') {
+        if (natSpecTags.some(function (item) { return cur == `@${item}` })) return 'docReserve'
+        return 'doc'
+      } 
+      if (cur == 'abc') { console.log('abc ==>',state.lastToken)}
       
       if (cur === 'solidity' && state.lastToken == 'pragma') {
         state.lastToken = state.lastToken + ' ' + cur;
       }
-
-      
+    
       if (keywords.propertyIsEnumerable(cur)) {
         if (cur == "case" || cur == "default") curPunc = "case";
-        if (cur == 'pragma') state.lastToken = cur;
-        if (cur == 'function') state.lastToken = 'function';
-        if (cur == 'returns') state.lastToken = 'returns';
-        if (cur == 'address') state.lastToken = 'address';
+        if (keywordsSpecial.propertyIsEnumerable(cur)) state.lastToken = cur;
         return "keyword";
       }
 
       if (keywordsEtherUnit.propertyIsEnumerable(cur)) return "etherUnit";
       if (keywordsContractRelated.propertyIsEnumerable(cur)) return "contractRelated";
-      if (keywordsControlStructures.propertyIsEnumerable(cur) || keywordsTypeInformation.propertyIsEnumerable(cur)) return "keyword";
-      if (keywordsValueTypes.propertyIsEnumerable(cur) || keywordsTimeUnit.propertyIsEnumerable(cur)|| isValidInteger(cur) || isValidBytes(cur)) {
-        state.lastToken = state.lastToken + "variable";
-        return  "keyword"
-      }  
+      if (keywordsControlStructures.propertyIsEnumerable(cur) ||    keywordsTypeInformation.propertyIsEnumerable(cur) || 
+        keywordsV0505NewReserve.propertyIsEnumerable(cur)) return "keyword";
+      if (keywordsValueTypes.propertyIsEnumerable(cur) || keywordsTimeUnit.propertyIsEnumerable(cur) || isValidInteger(cur) || isValidBytes(cur) || isValidFixed(cur)) {
+        state.lastToken = state.lastToken + 'variable';
+        return  'keyword'
+      }
+      
+      
   
       if (atoms.propertyIsEnumerable(cur)) return "atom";
       if (keywordsErrorHandling.propertyIsEnumerable(cur)) return 'errorHandling';
+      if (keywordsMathematicalAndCryptographicFuctions.propertyIsEnumerable(cur)) return 'mathematicalAndCryptographic';
 
       if (keywordsMoreBlockAndTransactionProperties.propertyIsEnumerable(cur) || 
         (keywordsBlockAndTransactionProperties[cur] && keywordsBlockAndTransactionProperties[cur].some(function (item) { return stream.match(`.${item}`) }))) return "variable-2";
+      
+      if (keywordsAbiEncodeDecodeFunctions[cur] && keywordsAbiEncodeDecodeFunctions[cur].some(function (item) { return stream.match(`.${item}`) })) return "abi";
+      
+      if (state.para) {
+        var str = state.para;
+        console.log(str);
+        if (str.match(/^function[\s]?[(][\D]*[)][\s]?pure[\s]?returns[(][\D]*[)]/g)) {
+          console.log('Match=>', state.lastToken)
+          return 'parameterValue'
+        }
+        
+      }
+        
 
-      if (state.lastToken == 'function') { state.lastToken = 'functionName'; return "functionName"; }
+      if ((state.lastToken == 'functionName(' || state.lastToken == 'returns(') && keywordsContractList.propertyIsEnumerable(cur)) {
+
+        state.lastToken += 'variable'
+        return 'variable'
+      }
+      if (state.lastToken == 'function') {
+      state.lastToken = 'functionName';
+        state.para = cur;
+        console.log('add para', cur);
+        return "functionName";
+      }
+  
 
       if (state.lastToken == 'functionName(variable') {
+        console.log('functionName=>',cur)
         state.lastToken = 'functionName(';
           return "parameterValue";
       }  
@@ -178,6 +243,7 @@
       }
 
       if (state.lastToken == 'address' && cur == 'payable') { state.lastToken = 'address payable' }; 
+      if (state.lastToken == 'contract' || state.lastToken == 'struct') { console.log('0000'); keywordsContractList[cur] = true; state.lastToken = null; console.log(keywordsContractList)}
 
     return "variable";
   }
@@ -209,9 +275,23 @@
    
     function isVersion(stream, state) {     
       if (state.lastToken == 'pragma solidity') {
-        state.lastToken = null;       
-        return !state.startOfLine && stream.match(/[\^\>\=]+?[\s]*[0-9\.]+[\s]*[\<]?[\s]*[0-9\.]+/)
+        state.lastToken = null;
+        return !state.startOfLine && (stream.match(/[\^{0}][0-9\.]+/) || stream.match(/[\>\=]+?[\s]*[0-9\.]+[\s]*[\<]?[\s]*[0-9\.]+/) )
+        
       };
+    }
+
+    function isNumber(ch, stream) {
+      if (/[\d\.]/.test(ch)) {
+        if (ch == ".") {
+          stream.match(/^[0-9]+([eE][\-+]?[0-9]+)?/);
+        } else if (ch == "0") {
+          stream.match(/^[xX][0-9a-fA-F]+/) || stream.match(/^0[0-7]+/);
+        } else {
+          stream.match(/^[0-9]*\.?[0-9]*([eE][\-+]?[0-9]+)?/);
+        }
+        return true;
+      }
     }
   
     function isValidInteger(token) {
@@ -230,7 +310,18 @@
       }
     }
 
+    function isValidFixed(token) {
+      if (token.match(/^[u]?fixed([0-9]+x[0-9]+)?/)) {
+        if (token.indexOf('d') + 1 == token.length) return true;
+        var numberPart = token.substr(token.indexOf('d') + 1, token.length).split('x');
+        console.log(numberPart[0] + ' , '+numberPart[1])
+        return (numberPart[0] % 8 === 0 && numberPart[0] <= 256 && numberPart[1] <= 80)
+      }
+    }
+
+
     function updateGarmmer(ch, state) {
+      
       if (ch == '(' && state.lastToken == 'functionName') { state.lastToken += ch; }
       if (ch == ')' && state.lastToken == 'functionName(') { state.lastToken = null; }
 
@@ -294,6 +385,7 @@
         state.indented = stream.indentation();
         state.startOfLine = true;
         if (ctx.type == "case") ctx.type = "}";
+        if (state.grammar == 'doc') state.grammar = null;
       }
       if (stream.eatSpace()) return null;
       curPunc = null;
