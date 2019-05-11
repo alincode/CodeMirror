@@ -65,7 +65,7 @@
       'if': true, 'else': true, 'while': true, 'do': true, 'for': true, 'break': true, 'continue': true, 'switch': true, "case": true, 'default': true,
     };
 
-    var keywordsValueTypes = {//TO DO: correct version is from 8 to 256, need to auto generate it
+    var keywordsValueTypes = {
       "bool": true, "byte": true, "string": true,
       "enum": true,
       "address": true,
@@ -78,10 +78,9 @@
     var keywordsAbiEncodeDecodeFunctions = {
       ['abi']: ['decode', 'encodePacked', 'encodeWithSelector', 'encodeWithSignature', 'encode']
     };
-    var keywordsMembersOfAddressType = {
-      ['address']: ['balance', 'call', 'delegatecall', 'staticcall'],
-      ['address payable']: ['transfer', 'send'],
-    };
+    var keywordsMembersOfAddressType = 
+      ['transfer', 'send','balance', 'call', 'delegatecall', 'staticcall']
+    ;
 
     var natSpecTags = ['title', 'author', 'notice', 'dev', 'param','return'];
 
@@ -103,8 +102,9 @@
       // "println": true, "real": true, "recover": true
     };
 
-    var isOperatorChar = /[+\-*&^%:=<>!|\/]/;
+    var isOperatorChar = /[+\-*&^%:=<>!|\/~]/;
     var isNegativeChar = /[-]/;
+ 
 
     var curPunc;
 
@@ -120,8 +120,10 @@
       }
 
       if (isVersion(stream, state)) return "version"
-      if (isNumber(ch, stream)) return 'number';
 
+      if (ch == '.' && keywordsMembersOfAddressType.some(function (item) { return stream.match(`${item}`) })) return 'addressFunction';  
+
+      if (isNumber(ch, stream)) return 'number';
 
       if (/[\[\]{}\(\),;\:\.]/.test(ch)) {
         return updateGarmmer(ch, state)      
@@ -149,9 +151,7 @@
         }
       }
 
-
       if (isNegativeChar.test(ch)) {
-        console.log('nagtive=>', stream.current())
         if(isNumber(stream.peek(), stream)) return 'number'
         return "operator";
       }
@@ -233,17 +233,18 @@
       if (state.lastToken == 'functionName(variable') {
         console.log('functionName=>',cur)
         state.lastToken = 'functionName(';
-          return "parameterValue";
+          return 'parameterValue';
       }  
 
       if (state.lastToken == 'returns(variable') {
         console.log('checking', cur);
         state.lastToken = 'returns(';
-        return "parameterValue";
+        return 'parameterValue';
       }
 
       if (state.lastToken == 'address' && cur == 'payable') { state.lastToken = 'address payable' }; 
-      if (state.lastToken == 'contract' || state.lastToken == 'struct') { console.log('0000'); keywordsContractList[cur] = true; state.lastToken = null; console.log(keywordsContractList)}
+      if (state.lastToken == 'contract' || state.lastToken == 'struct') { console.log('0000'); keywordsContractList[cur] = true; state.lastToken = null; console.log(keywordsContractList) }
+ 
 
     return "variable";
   }
@@ -276,8 +277,7 @@
     function isVersion(stream, state) {     
       if (state.lastToken == 'pragma solidity') {
         state.lastToken = null;
-        return !state.startOfLine && (stream.match(/[\^{0}][0-9\.]+/) || stream.match(/[\>\=]+?[\s]*[0-9\.]+[\s]*[\<]?[\s]*[0-9\.]+/) )
-        
+        return !state.startOfLine && (stream.match(/[\^{0}][0-9\.]+/) || stream.match(/[\>\=]+?[\s]*[0-9\.]+[\s]*[\<]?[\s]*[0-9\.]+/) )        
       };
     }
 
@@ -343,6 +343,8 @@
       if (ch == ')' && (state.lastToken == 'address(this')) {
         console.log('=======>address end');
       }
+
+
       curPunc = ch;
       return null;
     }    

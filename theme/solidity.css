@@ -7,7 +7,7 @@
 .cm-s-solidity span.cm-functionName,.cm-s-solidity span.cm-number,.cm-s-solidity span.cm-etherUnit  { color: #219; }
 .cm-s-solidity span.cm-parameterValue { color: rgb(33, 111, 114);}
 .cm-s-solidity span.cm-contractRelated { color: rgb(33, 111, 114);}
-.cm-s-solidity span.cm-qualifier{ color: #555; }
+.cm-s-solidity span.cm-qualifier, .cm-s-solidity span.cm-addressFunction{ color: #555; }
 .cm-s-solidity span.cm-keyword { color: #00f;}
 .cm-s-solidity span.cm-builtin , .cm-s-solidity span.cm-docReserve  { color: #30a; }
 .cm-s-solidity span.cm-abi , .cm-s-solidity span.cm-doc { color: rgb(85, 109, 190) }
