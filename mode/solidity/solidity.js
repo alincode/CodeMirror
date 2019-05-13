@@ -204,7 +204,10 @@
       if (keywordsMoreBlockAndTransactionProperties.propertyIsEnumerable(cur) || 
         (keywordsBlockAndTransactionProperties[cur] && keywordsBlockAndTransactionProperties[cur].some(function (item) { return stream.match(`.${item}`) }))) return "variable-2";
       
-      if (keywordsAbiEncodeDecodeFunctions[cur] && keywordsAbiEncodeDecodeFunctions[cur].some(function (item) { return stream.match(`.${item}`) })) return "abi";
+      if (keywordsAbiEncodeDecodeFunctions[cur] && keywordsAbiEncodeDecodeFunctions[cur].some(function (item) { return stream.match(`.${item}`) })) return 'abi';
+
+      var style = updateHexLiterals(cur, stream);
+      if (style != null) return style;
       
       if (state.para) {
         var str = state.para;
@@ -319,6 +322,26 @@
       }
     }
 
+    function updateHexLiterals(token, stream) {
+      if (token.match(/^hex/) && stream.peek()=='\"') {
+        var maybeEnd = false, ch, hexValue = '', stringAfterHex='';
+        while (ch = stream.next()) {
+          stringAfterHex += ch;
+          if (ch == '\"' && maybeEnd) {
+            hexValue = stringAfterHex.substring(1, stringAfterHex.length-1);
+            if (hexValue.match(/^[0-9a-fA-F]+$/)) {
+              return 'number'
+            } else {
+              stream.backUp(stringAfterHex.length); 
+            }
+            break;
+          }
+          maybeEnd = maybeEnd || (ch == '\"');
+          
+        }
+       
+      }
+    }
 
     function updateGarmmer(ch, state) {
       
