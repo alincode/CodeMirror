@@ -107,13 +107,11 @@
  
 
     var curPunc;
-
+    
     function tokenBase(stream, state) {
       var ch = stream.next();
-      if (state.para != null) {
-        state.para = state.para + ' ' + ch;
-      }
-    
+     
+      
       if (ch == '"' || ch == "'" || ch == "`") {
         state.tokenize = tokenString(ch);
         return state.tokenize(stream, state);
@@ -163,26 +161,23 @@
       stream.eatWhile(/[\w\$_\xa1-\uffff]/);
       
       var cur = stream.current();
-      if (state.para != null) {
-        console.log('Before state.para=',state.para)
-        state.para = state.para.substr(0,state.para-1) + ' ' + cur;
-        console.log('After tate.para=', state.para)
-      }
-      console.log(`current token =  ${cur} last token = ${state.lastToken}`) 
+
+      console.log(`current token =  ${cur}, last token = ${state.lastToken}`) 
 
       if (state.grammar == 'doc') {
         if (natSpecTags.some(function (item) { return cur == `@${item}` })) return 'docReserve'
         return 'doc'
       } 
-      if (cur == 'abc') { console.log('abc ==>',state.lastToken)}
       
       if (cur === 'solidity' && state.lastToken == 'pragma') {
         state.lastToken = state.lastToken + ' ' + cur;
       }
     
+      
       if (keywords.propertyIsEnumerable(cur)) {
         if (cur == "case" || cur == "default") curPunc = "case";
         if (keywordsSpecial.propertyIsEnumerable(cur)) state.lastToken = cur;
+        //if (cur == 'function' && state.para == 'parameterMode') 
         return "keyword";
       }
 
@@ -195,8 +190,6 @@
         return  'keyword'
       }
       
-      
-  
       if (atoms.propertyIsEnumerable(cur)) return "atom";
       if (keywordsErrorHandling.propertyIsEnumerable(cur)) return 'errorHandling';
       if (keywordsMathematicalAndCryptographicFuctions.propertyIsEnumerable(cur)) return 'mathematicalAndCryptographic';
@@ -209,26 +202,20 @@
       var style = updateHexLiterals(cur, stream);
       if (style != null) return style;
       
-      if (state.para) {
-        var str = state.para;
-        console.log(str);
-        if (str.match(/^function[\s]?[(][\D]*[)][\s]?pure[\s]?returns[(][\D]*[)]/g)) {
-          console.log('Match=>', state.lastToken)
-          return 'parameterValue'
-        }
-        
-      }
-        
-
       if ((state.lastToken == 'functionName(' || state.lastToken == 'returns(') && keywordsContractList.propertyIsEnumerable(cur)) {
 
         state.lastToken += 'variable'
         return 'variable'
       }
       if (state.lastToken == 'function') {
-      state.lastToken = 'functionName';
-        state.para = cur;
-        console.log('add para', cur);
+        state.lastToken = 'functionName';
+        if (state.para == null) {
+          state.grammar = 'function';
+          state.para = '';
+        }
+        //state.parasMode = isNaN(state.parasMode) ? 1 : state.functionLayerCount++;
+        state.para += 'functionName';
+        console.log('add para,', state.para);
         return "functionName";
       }
   
@@ -247,7 +234,9 @@
 
       if (state.lastToken == 'address' && cur == 'payable') { state.lastToken = 'address payable' }; 
       if (state.lastToken == 'contract' || state.lastToken == 'struct') { console.log('0000'); keywordsContractList[cur] = true; state.lastToken = null; console.log(keywordsContractList) }
- 
+      if (state.grammar == 'function') {
+        return 'parameterValue'
+      }
 
     return "variable";
   }
@@ -344,30 +333,40 @@
     }
 
     function updateGarmmer(ch, state) {
-      
-      if (ch == '(' && state.lastToken == 'functionName') { state.lastToken += ch; }
-      if (ch == ')' && state.lastToken == 'functionName(') { state.lastToken = null; }
-
-      if (ch == '(' && state.lastToken == 'returns') {
-        console.log('=======>returns start');
-        state.lastToken += ch;
+      //console.log('======Begin===, ', state.para, ch);
+     
+      if (ch == ',' && state.para == 'functionName(variable') {
+        state.para = 'functionName(';
+        
+      }
+      if (state.para!=null && state.para.startsWith('functionName')) {
+        if (ch == ')') {
+          if (state.para.endsWith('(')) {
+            state.para = state.para.substr(0, state.para.length - 1)
+            if (state.para == 'functionName')
+              state.grammar = ''
+          }
+        } else if (ch == '(') {
+          state.para += ch;
+        }
       }
 
-      if (ch == ')' && (state.lastToken == 'returns(' || state.lastToken == 'returns(variable')) {
-        console.log('=======>returns end');
+      if (ch == '(' && state.lastToken == 'functionName') {
+        state.lastToken += ch;
+      } else if (ch == ')' && state.lastToken == 'functionName(') {
+        state.lastToken = null;
+      }else if(ch == '(' && state.lastToken == 'returns') {
+        //console.log('=======>returns start');
+        state.lastToken += ch;
+      }else if(ch == ')' && (state.lastToken == 'returns(' || state.lastToken == 'returns(variable')) {
+        //console.log('=======>returns end');
         state.lastToken = null;
       }
-
       if (ch == '(' && state.lastToken == 'address') {
-        console.log('=======>address start');
+        //console.log('=======>address start');
         state.lastToken += ch;
       }
-
-      if (ch == ')' && (state.lastToken == 'address(this')) {
-        console.log('=======>address end');
-      }
-
-
+      //console.log('======End===, ', state.para);
       curPunc = ch;
       return null;
     }    
